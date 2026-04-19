@@ -1,52 +1,86 @@
 import { Company, SearchFilters } from '@/types/company';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3001';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080';
 
-interface CompaniesResponse {
-  results: Company[];
+/**
+ * Backend Response Shape
+ */
+export interface CompaniesResponse {
+  data: Company[];
   total: number;
+  page: number;
+  limit: number;
+  aiSuggestions?: string[];
 }
 
-interface AiResponse {
-  filters: SearchFilters;
-  results: Company[];
-  total: number;
-  message?: string;
-}
-
-export async function fetchCompanies(filters: SearchFilters, page: number, limit = 10): Promise<CompaniesResponse> {
-  const params = new URLSearchParams({
-    page: String(page),
-    limit: String(limit),
-  });
-
-  if (filters.sector) params.set('sector', filters.sector);
-  if (filters.subSector) params.set('subSector', filters.subSector);
-  if (filters.location) params.set('location', filters.location);
-
-  const response = await fetch(`${API_BASE_URL}/companies?${params.toString()}`, { cache: 'no-store' });
-  if (!response.ok) throw new Error('Failed to fetch companies');
-  return response.json();
-}
-
-export async function aiSearch(query: string): Promise<AiResponse> {
-  const response = await fetch(`${API_BASE_URL}/search/ai`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query }),
-  });
-
-  if (!response.ok) throw new Error('Failed to run AI search');
-  return response.json();
-}
-
-export async function exportCompanies(filters: SearchFilters): Promise<Blob> {
+/**
+ * Unified Search (AI + Filters + Similarity)
+ */
+export async function fetchCompanies(
+  filters: SearchFilters,
+  page: number = 1,
+  limit: number = 10
+): Promise<CompaniesResponse> {
   const params = new URLSearchParams();
+
+  // 🔴 REQUIRED: backend expects query always
+  // if (!filters.query || filters.query.trim().length === 0) {
+  //   throw new Error('Search query is required');
+  // }
+
+  params.set('query', filters.query.trim());
+
+  // Optional filters
   if (filters.sector) params.set('sector', filters.sector);
   if (filters.subSector) params.set('subSector', filters.subSector);
   if (filters.location) params.set('location', filters.location);
 
-  const response = await fetch(`${API_BASE_URL}/companies/export?${params.toString()}`);
-  if (!response.ok) throw new Error('Failed to export companies');
+  params.set('page', String(page));
+  params.set('limit', String(limit));
+
+  const response = await fetch(
+    `${API_BASE_URL}/companies/search?${params.toString()}`,
+    {
+      method: 'GET',
+      cache: 'no-store', // always fresh (important for AI search)
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Search failed: ${errorText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Export Companies (CSV / File)
+ */
+export async function exportCompanies(
+  filters: SearchFilters
+): Promise<Blob> {
+  const params = new URLSearchParams();
+
+  if (filters.query) params.set('query', filters.query);
+  if (filters.sector) params.set('sector', filters.sector);
+  if (filters.subSector) params.set('subSector', filters.subSector);
+  if (filters.location) params.set('location', filters.location);
+
+  const response = await fetch(
+    `${API_BASE_URL}/companies/export?${params.toString()}`,
+    {
+      method: 'GET',
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error('Failed to export companies');
+  }
+
   return response.blob();
 }

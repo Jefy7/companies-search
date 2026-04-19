@@ -12,6 +12,12 @@ interface ResultsTableProps {
 export function ResultsTable({ onPageChange }: ResultsTableProps) {
   const { results, loading, total, page } = useAppSelector((state) => state.search);
 
+  /**
+   * 📊 Pagination Range
+   */
+  const start = total === 0 ? 0 : (page - 1) * 10 + 1;
+  const end = Math.min(page * 10, total);
+
   const content = useMemo(() => {
     if (loading) {
       return Array.from({ length: 6 }).map((_, idx) => (
@@ -36,7 +42,10 @@ export function ResultsTable({ onPageChange }: ResultsTableProps) {
     }
 
     return results.map((company) => (
-      <tr key={company.id} className="border-b border-white/10 text-sm transition hover:bg-white/5">
+      <tr
+        key={company.id}
+        className="border-b border-white/10 text-sm transition hover:bg-white/5"
+      >
         <td className="px-4 py-3 font-medium">{company.name}</td>
         <td className="px-4 py-3 text-gray-300">{company.email}</td>
         <td className="px-4 py-3 text-gray-300">{company.phone}</td>
@@ -44,7 +53,12 @@ export function ResultsTable({ onPageChange }: ResultsTableProps) {
         <td className="px-4 py-3 text-gray-300">{company.subSector}</td>
         <td className="px-4 py-3 text-gray-300">{company.location}</td>
         <td className="px-4 py-3">
-          <a href={company.linkedin} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+          <a
+            href={company.linkedin}
+            target="_blank"
+            rel="noreferrer"
+            className="text-accent hover:underline"
+          >
             Profile
           </a>
         </td>
@@ -54,7 +68,20 @@ export function ResultsTable({ onPageChange }: ResultsTableProps) {
   }, [loading, results]);
 
   return (
-    <section className="glass rounded-xl">
+    <section className="glass rounded-xl p-4">
+
+      {/* 🔥 RESULT SUMMARY */}
+      <div className="mb-4 flex items-center justify-between text-sm text-gray-400">
+        <span>
+          {loading
+            ? 'Searching...'
+            : total > 0
+              ? `Showing ${start}–${end} of ${total} companies`
+              : 'No results found'}
+        </span>
+      </div>
+
+      {/* TABLE */}
       <div className="overflow-x-auto">
         <table className="min-w-full table-auto border-collapse">
           <thead>
@@ -72,7 +99,14 @@ export function ResultsTable({ onPageChange }: ResultsTableProps) {
           <tbody>{content}</tbody>
         </table>
       </div>
-      <Pagination page={page} total={total} limit={10} onPageChange={onPageChange} />
+
+      {/* PAGINATION */}
+      <Pagination
+        page={page}
+        total={total}
+        limit={10}
+        onPageChange={onPageChange}
+      />
     </section>
   );
 }
